@@ -1,25 +1,105 @@
 import App
 
-/// We have isolated all of our App's logic into
-/// the App module because it makes our app
-/// more testable.
-///
-/// In general, the executable portion of our App
-/// shouldn't include much more code than is presented
-/// here.
-///
-/// We simply initialize our Droplet, optionally
-/// passing in values if necessary
-/// Then, we pass it to our App's setup function
-/// this should setup all the routes and special
-/// features of our app
-///
-/// .run() runs the Droplet's commands, 
-/// if no command is given, it will default to "serve"
 let config = try Config()
 try config.setup()
 
 let drop = try Droplet(config)
 try drop.setup()
+
+//-------------------------------------------------
+// GET "Hello, world" output
+//-------------------------------------------------
+drop.get("hello") { _ in
+    return "Hello, world"
+}
+//-------------------------------------------------
+
+//-------------------------------------------------
+// GET all users list
+//-------------------------------------------------
+drop.get("users") { _ in
+    let users = try User.makeQuery().all()
+    
+    guard users.count > 0 else {
+        return "No users"
+    }
+    
+    return try users.makeJSON()
+}
+//-------------------------------------------------
+
+//-------------------------------------------------
+// GET user by id
+// parameter: id
+//-------------------------------------------------
+drop.get("user") { request in
+    guard let id = request.data[User.idKey]?.int else {
+        return "id parameter is missed"
+    }
+    
+    guard let user = try User.makeQuery().filter(User.idKey, id).first() else {
+        return "No such user with id: \(id)"
+    }
+    
+    return try user.makeJSON()
+}
+//-------------------------------------------------
+
+//-------------------------------------------------
+// POST new user
+// payload: {"name" : "Username"}
+//-------------------------------------------------
+drop.post("user") { request in
+    guard let json = request.json, let user = try? User(json: json) else {
+        return "Invalid payload"
+    }
+    
+    try user.save()
+    return "Success"
+}
+//-------------------------------------------------
+
+//-------------------------------------------------
+// PATCH update existed user
+// parameter: id
+// payload: {"name" : "New username"}
+//-------------------------------------------------
+drop.patch("user") { request in
+    guard let id = request.data[User.idKey]?.int else {
+        return "id parameter is missed"
+    }
+    
+    guard let user = try User.makeQuery().filter(User.idKey, id).first() else {
+        return "No such user with id: \(id)"
+    }
+    
+    guard let newName = request.data[User.nameKey]?.string else {
+        return "new name is missed"
+    }
+    
+    user.update(name: newName)
+    
+    try user.save()    
+    return "Success"
+}
+//-------------------------------------------------
+
+//-------------------------------------------------
+// DELETE delete user
+// parameter: id
+//-------------------------------------------------
+drop.delete("user") { request in
+    guard let id = request.data[User.idKey]?.int else {
+        return "id parameter is missed"
+    }
+    
+    guard let user = try User.makeQuery().filter(User.idKey, id).first() else {
+        return "No such user with id: \(id)"
+    }
+    
+    try user.delete()
+    return "Success"
+}
+//-------------------------------------------------
 
 try drop.run()
